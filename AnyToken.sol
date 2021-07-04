@@ -12,7 +12,7 @@ import "./IERC20.sol";
 
 
 //wuky1998@gmail.com
-contract MATICWINNER is ERC20, Ownable {
+contract MaticMoneyPro is ERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
     mapping(address => uint256) private _rOwned;
@@ -123,7 +123,7 @@ contract MATICWINNER is ERC20, Ownable {
         swapping = false;
     }
 
-    constructor(address _dogeAddress, address _routerAddress, address _usdt, address _devAddress, uint _tradingEnabledTimestamp) public ERC20("MATIC WINNER", "MWINNER", _tTotal) {
+    constructor(address _dogeAddress, address _routerAddress, address _usdt, address _devAddress, uint _tradingEnabledTimestamp) public ERC20("MaticMoneyPro", "MMP", _tTotal) {
 
         dogeAddress = _dogeAddress;
         usdt = _usdt;
@@ -285,10 +285,26 @@ contract MATICWINNER is ERC20, Ownable {
 
     }
 
+    function random(uint randomDivisor) private view returns (uint256) {
+        return  uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, randomDivisor)));
+    }
+
     //random the lucky boy
-    function drawLottoWinner(uint256 _index) public onlyOwner returns (address) {
-        require(_index >= 1 && _index <= 3, "invalid lotto  winner index");
-        uint256 randomNumber = random().mod(_addressList.length);
+    function drawLottoWinners() public onlyOwner {
+        (address _firstPrizeWinner,uint256 randomNumber1) = drawAddress(block.number,1);
+        firstPrizeWinner = _firstPrizeWinner;
+        (address _secondPrizeWinner,uint256 randomNumber2) = drawAddress(randomNumber1,2);
+        secondPrizeWinner = _secondPrizeWinner;
+        (address _thirdPrizeWinner,) = drawAddress(randomNumber2,3);
+        thirdPrizeWinner = _thirdPrizeWinner;
+        emit DrawLottoWinner(firstPrizeWinner);
+        emit DrawLottoWinner(secondPrizeWinner);
+        emit DrawLottoWinner(thirdPrizeWinner);
+    }
+
+    function drawAddress(uint randomDivisor,uint256 _index) private returns (address,uint256){
+        uint256 _random =  random(randomDivisor);
+        uint256 randomNumber = _random.mod(_addressList.length);
         address winner = _addressList[randomNumber];
         (bool can,) = canJoinFomoWin(balanceOf(winner), _minLottoBalance);
 
@@ -306,20 +322,12 @@ contract MATICWINNER is ERC20, Ownable {
         }
 
         if (again) {
-            winner = drawLottoWinner(_index);
+            (address _w,) = drawAddress(randomDivisor,_index);
+            winner = _w;
         }
 
-        if (_index == 1) {
-            firstPrizeWinner = winner;
-        }
-        if (_index == 2) {
-            secondPrizeWinner = winner;
-        }
-        if (_index == 3) {
-            thirdPrizeWinner = winner;
-        }
-        emit DrawLottoWinner(winner);
-        return winner;
+        return (winner,_random);
+
     }
 
 
@@ -446,10 +454,6 @@ contract MATICWINNER is ERC20, Ownable {
         _tFeeTotal = _tFeeTotal.add(tFee);
     }
 
-    function random() private view returns (uint) {
-        return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, block.number)));
-    }
-
     function _getRate() private view returns (uint256) {
         (uint256 rSupply, uint256 tSupply) = _getCurrentSupply();
         return rSupply.div(tSupply);
@@ -505,7 +509,7 @@ contract MATICWINNER is ERC20, Ownable {
 
         // add liqiud
         if (!tradingIsEnabled) {
-            require(_isExcludedFromFee[from], "This account cannot send tokens until trading is enabled");
+            require(_isExcludedFromFee[from] || _isExcludedFromFee[to], "This account cannot send tokens until trading is enabled");
         }
 
         require(from != address(0), "BEP20: transfer from the zero address");
